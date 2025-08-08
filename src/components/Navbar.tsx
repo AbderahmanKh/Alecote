@@ -40,7 +40,15 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
-           
+            <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
+              Home
+            </Link>
+            <Link to="/#services" className="text-sm font-medium hover:text-primary transition-colors">
+              Services
+            </Link>
+            <Link to="/#about" className="text-sm font-medium hover:text-primary transition-colors">
+              About
+            </Link>
             <Button asChild variant="default" size="sm" className="rounded-full">
               <Link to="/book">Book Now</Link>
             </Button>

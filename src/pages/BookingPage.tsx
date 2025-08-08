@@ -1,15 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon, Upload } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { apiService, AvailableDate } from "@/lib/api";
 import {
   Form,
   FormControl,
@@ -30,7 +28,7 @@ const formSchema = z.object({
   phone: z.string().min(10, {
     message: "Phone number must be at least 10 digits.",
   }),
-  date: z.date({
+  date: z.string({
     required_error: "Please select a date for your session.",
   }),
   paymentProof: z.instanceof(FileList).refine((files) => files.length > 0, {
@@ -43,6 +41,8 @@ type FormValues = z.infer<typeof formSchema>;
 const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
+  const [loadingDates, setLoadingDates] = useState(true);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -54,22 +54,52 @@ const BookingPage = () => {
     },
   });
 
+  useEffect(() => {
+    fetchAvailableDates();
+  }, []);
+
+  const fetchAvailableDates = async () => {
+    try {
+      const dates = await apiService.getAvailableDates();
+      setAvailableDates(dates.filter(date => date.isAvailable));
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load available dates",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDates(false);
+    }
+  };
+
   const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    console.log("Form submitted:", data);
-    
-    setIsSubmitting(false);
-    setIsSuccess(true);
-    
-    toast({
-      title: "Booking Successful!",
-      description: "We've received your booking request. You'll hear from us soon!",
-      variant: "default",
-    });
+    try {
+      const formData = new FormData();
+      formData.append('fullName', data.fullName);
+      formData.append('email', data.email);
+      formData.append('phone', data.phone);
+      formData.append('date', data.date);
+      formData.append('paymentProof', data.paymentProof[0]);
+
+      await apiService.createBooking(formData);
+      
+      setIsSuccess(true);
+      toast({
+        title: "Booking Successful!",
+        description: "We've received your booking request. You'll hear from us soon!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -94,7 +124,7 @@ const BookingPage = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Thank You!</h2>
           <p className="text-muted-foreground mb-6">
-            Your booking has been confirmed. I'll be in touch with you shortly to confirm the details of our session.
+            Your booking request has been submitted successfully. I'll review your request and get back to you within 24 hours.
           </p>
           <Button asChild className="rounded-full">
             <a href="/">Return to Home</a>
@@ -162,37 +192,30 @@ const BookingPage = () => {
               control={form.control}
               name="date"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Session Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) => date < new Date()}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <FormItem>
+                  <FormLabel>Available Dates</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingDates ? "Loading dates..." : "Select an available date"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableDates.map((dateObj) => (
+                        <SelectItem key={dateObj._id} value={dateObj.date}>
+                          {new Date(dateObj.date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Only dates made available by the advisor are shown.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -205,7 +228,7 @@ const BookingPage = () => {
                 <FormItem>
                   <FormLabel>Payment Proof</FormLabel>
                   <FormControl>
-                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <div className="grid w-full items-center gap-1.5">
                       <label
                         htmlFor="payment-proof"
                         className="cursor-pointer flex items-center justify-center w-full h-32 border-2 border-dashed rounded-md border-muted-foreground/25 hover:border-primary/50 transition-colors"
@@ -243,9 +266,9 @@ const BookingPage = () => {
             <Button
               type="submit"
               className="w-full rounded-full"
-              disabled={isSubmitting}
+              disabled={isSubmitting || loadingDates}
             >
-              {isSubmitting ? "Processing..." : "Confirm Booking"}
+              {isSubmitting ? "Processing..." : "Submit Booking Request"}
             </Button>
           </form>
         </Form>

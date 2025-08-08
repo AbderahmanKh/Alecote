@@ -50,7 +50,7 @@ const LandingPage = () => {
             <div className="md:w-1/2 animate-fade-in">
               <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
                 <img
-                  src="https://www.alecote.com/samar.png"
+                  src="https://picsum.photos/id/1011/800/1000"
                   alt="Alecote"
                   className="object-cover w-full h-full transition-transform duration-500 hover:scale-105"
                 />
