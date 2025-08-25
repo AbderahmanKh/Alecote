@@ -46,8 +46,8 @@ const Navbar = () => {
             <Link to="/#services" className="text-sm font-medium hover:text-primary transition-colors">
               Services
             </Link>
-            <Link to="/#about" className="text-sm font-medium hover:text-primary transition-colors">
-              About
+            <Link to="/admin/login" className="text-sm font-medium hover:text-primary transition-colors">
+              Login Samar 
             </Link>
             <Button asChild variant="default" size="sm" className="rounded-full">
               <Link to="/book">Book Now</Link>
