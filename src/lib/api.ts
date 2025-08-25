@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base API URL - Change this to your backend URL
-const API_BASE_URL = 'https://alecote-be.onrender.com';
+const API_BASE_URL = 'https://alecote-be.onrender.com/api';
 
 // Create axios instance with base configuration
 const api = axios.create({
